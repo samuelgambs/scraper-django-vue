@@ -103,18 +103,11 @@ def menor_mensalidade_uf(request, uf):
 @api_view(['GET'])
 def menor_mensalidade_regiao(request, regiao):
     try:
-        import ipdb; ipdb.set_trace()
-        cursos = Cursos.objects.all()
-        x = get_estados(regiao)
-        print(x)
-        json_data = open('/static/regioes.json')
-        data1 = json.load(json_data) # deserialises it
-        data2 = json.dumps(data1) # json formatted string
-
-        json_data.close()
-        print(data2)
-        cursos = Cursos.objects.filter(uf__in=[x]).annotate(Min('mensalidade')).order_by('mensalidade')[:5]
-
+        cursos = []
+        for estado in estados[regiao]:
+            cursos.extend(list(Cursos.objects.filter(uf=estado)))
+            
+        cursos.annotate(Min('mensalidade')).order_by('mensalidade')
 
     except Cursos.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
