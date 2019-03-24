@@ -5,7 +5,17 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from .models import Cursos
 from .serializer import CursosSerializer
 from django.db.models import Avg, Max, Min, Sum
+from django.db.models import Subquery
+import json
 
+
+estados = {
+    "sul": ("PR", "RS", "SC"),
+    "sudeste": ("SP", "RJ", "ES", "MG"),
+    "centro-oeste": ("MT", "MS", "GO"),
+    "norte": ("AM", "RR", "AP", "PA", "TO", "RO", "AC"),
+    "nordeste": ("MA", "PI", "CE", "RN", "PE","PB", "SE", "AL", "BA")
+}
 
 @api_view(['GET'])
 def cursos_list(request):
@@ -51,29 +61,64 @@ def curso_detail(request, pk):
 @api_view(['GET'])
 def mensalidade_top5(request):
     try:
-        cursos = Cursos.objects.order_by().values('curso').distinct()
-        print(cursos)
+        cursos = Cursos.objects.values('curso').distinct()
+        print(list(cursos))
         estados = Cursos.objects.order_by().values('uf').distinct()
-        print(estados)
+        print(list(estados))
 
         top = Cursos.objects.annotate(Max('mensalidade')).order_by('-mensalidade')[:5]
     except Cursos.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
     if request.method == 'GET':
-        serializer = CursosSerializer(top,context={'request': request},many=True)
+        serializer = CursosSerializer(top, context={'request': request})
         return Response(serializer.data)
 
-
+@api_view(['GET'])
 def maior_mensalidade_uf(request, uf):
     try:
-        import ipdb; ipdb.set_trace()
-        curso = Cursos.objects.get(uf=uf).annotate(Max('mensalidade')).order_by('-mensalidade')[:5]
+        uf = uf.upper()
+        cursos = Cursos.objects.all().filter(uf=uf).annotate(Max('mensalidade')).order_by('-mensalidade')[:5]
 
     except Cursos.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        serializer = CursosSerializer(curso, context={'request': request})
+        serializer = CursosSerializer(cursos, context={'request': request}, many=True)
         return Response(serializer.data)
 
+@api_view(['GET'])
+def menor_mensalidade_uf(request, uf):
+    try:
+        cursos = Cursos.objects.all()
+        uf = uf.upper()
+        cursos = Cursos.objects.filter(uf=uf).annotate(Min('mensalidade')).order_by('mensalidade')[:5]
 
+    except Cursos.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = CursosSerializer(cursos, context={'request': request}, many=True)
+        return Response(serializer.data)
+
+@api_view(['GET'])
+def menor_mensalidade_regiao(request, regiao):
+    try:
+        import ipdb; ipdb.set_trace()
+        cursos = Cursos.objects.all()
+        x = get_estados(regiao)
+        print(x)
+        json_data = open('/static/regioes.json')
+        data1 = json.load(json_data) # deserialises it
+        data2 = json.dumps(data1) # json formatted string
+
+        json_data.close()
+        print(data2)
+        cursos = Cursos.objects.filter(uf__in=[x]).annotate(Min('mensalidade')).order_by('mensalidade')[:5]
+
+
+    except Cursos.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = CursosSerializer(cursos, context={'request': request}, many=True)
+        return Response(serializer.data)

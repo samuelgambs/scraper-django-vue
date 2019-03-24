@@ -2,7 +2,6 @@ from django.test import TestCase
 
 # Create your tests here.
 
-list()
 
 estados = {
     "sul": ("PR", "RS", "SC"),
